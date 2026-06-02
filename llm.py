@@ -37,4 +37,5 @@ Write the complete invitation email now."""
         ],
         max_tokens=1000,
     )
+    
     return response.choices[0].message.content
