@@ -9,7 +9,8 @@ app = FastAPI(title="AccelAlpha Oracle Event API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In prod, restrict to your Vercel domain
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -17,7 +18,7 @@ app.add_middleware(
 class VisitorRequest(BaseModel):
     name: str
     email: str
-    focus: str  # Professional Focus / Career Challenges
+    focus: str
 
 class InvitationResponse(BaseModel):
     matched_session_title: str
@@ -31,19 +32,16 @@ def root():
 
 @app.post("/match-session", response_model=InvitationResponse)
 async def match_session(visitor: VisitorRequest):
-    # Step 1: Match session from agenda.txt
     session = find_best_session(visitor.focus)
     if not session:
         raise HTTPException(status_code=404, detail="No matching session found.")
 
-    # Step 2: Draft personalized invitation via LLM
     email_body = await draft_invitation_email(
         visitor_name=visitor.name,
         visitor_focus=visitor.focus,
         session=session
     )
 
-    # Step 3: MCP Simulation — log the action
     send_draft_via_mcp(visitor.email, email_body)
 
     return InvitationResponse(

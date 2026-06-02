@@ -1,56 +1,40 @@
-"""
-llm.py
-------
-Drafts a professional B2B invitation email using Claude API.
-Strict prompt rules prevent hallucination of fake topics, times, or speakers.
-"""
-
 import os
-import anthropic
+from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 SYSTEM_PROMPT = """You are a professional B2B event communications specialist.
-Your ONLY job is to write a personalized invitation email for a specific conference session.
 
-STRICT RULES YOU MUST FOLLOW WITHOUT EXCEPTION:
-1. You MUST ONLY use the exact session details provided to you — title, time, speaker name, and description as given.
-2. You are ABSOLUTELY FORBIDDEN from inventing, altering, or extrapolating any session topic, speaker name, time slot, or event detail not explicitly given.
-3. Do NOT mention any sessions, speakers, or topics that are not in the provided session data.
-4. Do NOT use placeholder text like [Company Name] or [Date] — write a complete, ready-to-send email.
-5. The event name is: "Troubled Waters: Sailing with AI in Supply Chain" by Accelalpha & Oracle.
-6. The email must be professional, warm, and concise — 3 to 5 short paragraphs maximum.
-7. End the email with a clear call-to-action to register or attend.
-8. Sign off as: The AccelAlpha Events Team
-"""
+STRICT RULES:
+1. Use ONLY the exact session details provided below.
+2. FORBIDDEN from inventing any topic, speaker, time, or event detail.
+3. Event name: "Troubled Waters: Sailing with AI in Supply Chain" by Accelalpha and Oracle.
+4. Professional, warm, 3-5 paragraphs max.
+5. End with a call-to-action to attend.
+6. Sign off as: The AccelAlpha Events Team"""
+
 
 async def draft_invitation_email(visitor_name: str, visitor_focus: str, session: dict) -> str:
-    """Generate a personalized B2B invitation email for the matched session."""
+    prompt = f"""VISITOR NAME: {visitor_name}
+VISITOR FOCUS: {visitor_focus}
 
-    user_prompt = f"""Write a personalized conference invitation email for the following visitor.
+SESSION DETAILS (use ONLY these):
+Title: {session["title"]}
+Time: {session["time"]}
+Speaker: {session["speaker"]}
+Description: {session["description"]}
 
-VISITOR DETAILS:
-- Name: {visitor_name}
-- Professional Focus / Challenges: {visitor_focus}
+Write the complete invitation email now."""
 
-MATCHED SESSION (use ONLY these exact details — do not change anything):
-- Session Title: {session['title']}
-- Time: {session['time']}
-- Speaker: {session['speaker']}
-- Description: {session['description']}
-
-Write the complete invitation email now, connecting the visitor's stated challenges to this exact session."""
-
-    message = await client.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=1000,
-        system=SYSTEM_PROMPT,
+    response = client.chat.completions.create(
+   model="llama-3.3-70b-versatile",
         messages=[
-            {"role": "user", "content": user_prompt}
-        ]
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=1000,
     )
-
-    return message.content[0].text
+    return response.choices[0].message.content
